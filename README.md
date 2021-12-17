@@ -63,6 +63,6 @@ The programm is also using a custom lexical analyzer generator made with jflex: 
 PS: The grammar I made is LALR(1). 
 
 ## Built with
-![](ignore/jv.PNG)
+![](ignore/jv.png)
 ![](ignore/jflex.PNG)
 ![](ignore/cup.PNG)
