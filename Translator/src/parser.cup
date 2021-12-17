@@ -1,0 +1,123 @@
+/* Simple +/-/* expression language; parser evaluates constant expressions on the fly*/
+/**
+ *  Package and Import Specifications
+ */
+import java_cup.runtime.*;
+
+/**
+ *  Usercode Components
+ */
+parser code {:
+    // Connect this parser to a scanner!
+    Scanner s;
+    Parser(Scanner s){ this.s=s; }
+:}
+
+/* define how to connect to the scanner! */
+scan with {: return s.next_token(); :};
+
+/**
+ *  Symbol Lists
+ */
+
+/* Terminals (tokens returned by the scanner). */
+terminal            PLUS, LPAREN, RPAREN, COM, RBR, DECL, PREF, SUFF, IF, ELSE;
+terminal String     IDENT, STRING;
+
+/*  Non terminals */
+non terminal            program;
+non terminal String     function_list,func,body,body_text,param,param_2,concat;
+non terminal String     function_call,call_params,call_params_2;
+non terminal String     stmt, cond, cond_ident, fix, stmt_body;
+
+/*      Precedence Declarations     */
+precedence right PLUS;
+
+/**    The Grammar Rules   **/
+
+program ::= function_list:fl{:
+			System.out.println("\n\npublic class Main {");
+            //Prefix java function
+            System.out.println("\tpublic static Boolean prefix(String str1,String str2) {");
+            System.out.println("\t\treturn str2.startsWith(str1);");
+            System.out.println("\t}");
+            //Suffix java function
+            System.out.println("\tpublic static Boolean suffix(String str1,String str2) {");
+            System.out.println("\t\treturn str2.endsWith(str1);");
+            System.out.println("\t}");
+            System.out.printf("\t%s", fl);
+			System.out.println("\n\t}");
+			System.out.println("}");
+			 :}
+	        ;
+
+
+
+//----FUNCTION DEFINITIONS/DECLARATIONS GRAMMAR----
+function_list  ::= func:f DECL body:b RBR function_list:rest                            {: RESULT = String.format("public static String %s){\n %s\n\t }\n\t%s", f, b,rest); :}
+                | function_call:fc                                                      {: RESULT = String.format("public static void main(String[] args) {\n%s", fc); :}
+                ;
+
+func           ::= IDENT:nam LPAREN param:p                                             {: RESULT = String.format("%s(%s", nam, p); :}
+                |                                                                       {: RESULT = ""; :}
+                ;
+
+param          ::= IDENT:param_name param_2:p2                                          {: RESULT = String.format("String %s%s", param_name,p2); :}
+                |                                                                       {: RESULT = ""; :}
+                ;
+
+param_2        ::= COM param:rest_param                                                 {: RESULT = String.format(", %s", rest_param); :}
+                  |                                                                     {: RESULT = ""; :}
+                  ;
+
+body           ::= body_text:bt body:b                                                  {: RESULT = String.format("\t\t %s%s", bt,b); :}
+                |                                                                       {: RESULT = ""; :}
+                ;
+
+body_text      ::=  STRING:str                                                          {: RESULT = String.format("return %s;", str); :}
+                |   IDENT:fun_name LPAREN call_params:cp RPAREN                         {: RESULT = String.format("return %s(%s);", fun_name, cp); :} //this is a function call in the body of a function
+                |   IDENT:str_1 concat:cc                                               {: RESULT = String.format("String str=new String(%s);\n\t\t%s return str;", str_1,cc); :}
+                |   stmt:s                                                              {: RESULT = String.format("String strng = %s;\n\t\t return strng;", s); :}
+                ;
+
+//----IF-ELSE STATEMENT GRAMMAR----
+stmt           ::= IF LPAREN cond:c RPAREN stmt_body:sb ELSE stmt_body:s2               {: RESULT = String.format(" (%s) ? (%s) : (%s)", c,sb,s2); :}                               
+                ;
+
+stmt_body      ::=  STRING:str                                                          {: RESULT = String.format("%s", str); :}
+                |   IDENT:fun_name LPAREN call_params:cp RPAREN                         {: RESULT = String.format("%s(%s)", fun_name, cp); :} //this is a function call in the body of a function
+                |   IDENT:str_1 concat:cc                                               {: RESULT = String.format("%s%s", str_1,cc); :}
+                |   stmt:s                                                              {: RESULT = String.format("%s", s); :}
+                ;
+
+cond           ::= cond_ident:cd fix:f cond_ident:cd2                                   {: RESULT = String.format("%s(%s,%s)", f,cd,cd2); :}
+                ;
+
+fix            ::= PREF                                                                 {: RESULT = String.format("prefix"); :}
+                |  SUFF                                                                 {: RESULT = String.format("suffix"); :}
+                ;
+
+cond_ident     ::= STRING:str1                                                          {: RESULT = String.format("%s", str1); :}
+                |  IDENT:str1                                                           {: RESULT = String.format("%s", str1); :}
+                |  IDENT:fun_name LPAREN call_params:cp RPAREN                          {: RESULT = String.format("%s(%s)", fun_name, cp); :}
+                ;
+
+//----FUNCTION CALL GRAMMAR----
+function_call  ::= IDENT:fun_name LPAREN call_params:cp RPAREN function_call:fc         {: RESULT = String.format("\t\tSystem.out.println(%s(%s));\n%s", fun_name, cp,fc); :}
+                |                                                                       {: RESULT = ""; :}
+                ;
+
+call_params     ::= IDENT:fun_name_2 LPAREN call_params:cp_2 RPAREN call_params_2:cp2_1             {: RESULT = String.format("%s(%s)%s", fun_name_2,cp_2,cp2_1); :}
+                |   STRING:str call_params_2:cp2_2                                                  {: RESULT = String.format("%s%s", str,cp2_2); :}
+                |   IDENT:str_2 call_params_2:cp2_4                                                 {: RESULT = String.format("%s%s", str_2,cp2_4); :}
+                |                                                                                   {: RESULT = ""; :}
+                ;
+
+call_params_2   ::= COM call_params:rest_prms                                                       {: RESULT = String.format(", %s", rest_prms); :}
+                  |                                                                                 {: RESULT = ""; :}
+                  ;
+
+//----CONCATENATION GRAMMAR----
+concat        ::= PLUS IDENT:str_2 concat:con                                                       {: RESULT = String.format("str=str+%s;%s", str_2,con); :}
+                |                                                                                   {: RESULT = ""; :}
+                ;
